@@ -81,6 +81,14 @@ public class Main {
 
   public static void main(String[] argv) {
     try (ZContext ctx = new ZContext()) {
+      Runtime.getRuntime().addShutdownHook(new Thread() {
+        @Override
+        public void run() {
+          System.out.println("Shutting down.");
+          ctx.destroy();
+        }
+      });
+
       int frontendPort = findOpenPort();
       System.out.printf("Binding frontend DEALER socket on port %d...\n",
                         frontendPort);
@@ -102,15 +110,12 @@ public class Main {
       Poller poller = ctx.createPoller(2);
       poller.register(frontend, Poller.POLLIN);
       poller.register(backend, Poller.POLLIN);
-      while (true) {
-        poller.poll();
+      while (poller.poll() != -1) {
         if (poller.pollin(0)) forwardMessages(frontend, backend);
         if (poller.pollin(1)) forwardMessages(backend, frontend);
       }
     } catch (Throwable e) {
       e.printStackTrace();
-    } finally {
-      System.out.println("done");
     }
   }
 }
