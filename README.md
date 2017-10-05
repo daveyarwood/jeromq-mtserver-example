@@ -51,6 +51,10 @@ terminating the context, but from what I understand, it is important to ensure
 the context is terminated before exiting, in order to ensure that system
 resources (file handles from selectors, etc.) are properly disposed.
 
+* In the polling loop in the main thread, instead of polling forever (`while
+  (true)`) or until the current thread is interrupted, I poll until `poll()`
+  returns `-1`, indicating polling was unsuccessful.
+
 ## Reproducing the issue
 
 Run `boot run`, wait some arbitrary amount of time, and then interrupt the
