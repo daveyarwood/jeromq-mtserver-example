@@ -6,6 +6,8 @@ import java.net.ServerSocket;
 import org.zeromq.ZContext;
 import org.zeromq.ZMQ;
 import org.zeromq.ZMQ.*;
+import org.zeromq.ZMQ.Error;
+import org.zeromq.ZMQException;
 import org.zeromq.ZThread;
 
 public class Main {
@@ -21,15 +23,6 @@ public class Main {
     }
   }
 
-  private static void sleep(int ms) {
-    try {
-      Thread.sleep(ms);
-    } catch (InterruptedException ie) {
-      Thread.currentThread().interrupt();
-      throw new RuntimeException(ie);
-    }
-  }
-
   // Receives parts of a multi-part message from `source` socket and sends them
   // to `destination` socket. Stops when the multi-part message is over, i.e.
   // there are no more messages to receive.
@@ -42,45 +35,44 @@ public class Main {
     }
   }
 
-  public static class Worker {
-    public ZContext ctx;
-    public ZThread.IAttachedRunnable runnable;
-    public int id;
+  private static void workerLog(int id, String msg) {
+    System.out.printf("[worker %d] %s\n", id, msg);
+  }
 
-    private void workerLog(String msg) {
-      System.out.printf("[worker %d] %s\n", id, msg);
-    }
+  private static void startWorker(ZContext ctx, int id) {
+    new Thread() {
+      public void run() {
+        try {
+          workerLog(id, "Reporting for duty!");
 
-    public Worker(ZContext context, int n) {
-      ctx = context;
-      id = n;
-
-      runnable = new ZThread.IAttachedRunnable() {
-        @Override
-        public void run(Object[] args, ZContext ctx, Socket pipe) {
           Socket socket = ctx.createSocket(ZMQ.REP);
           socket.connect(BACKEND_ADDRESS);
 
           while (true) {
             String msg = socket.recvStr(0);
-            workerLog("Received message: " + msg);
+            workerLog(id, "Received message: " + msg);
             // simulate doing work
-            sleep(1000);
-            workerLog("Sending response...");
+            try {
+              Thread.sleep(1000);
+            } catch (InterruptedException ie) {
+              Thread.currentThread().interrupt();
+              throw new RuntimeException(ie);
+            }
+            workerLog(id, "Sending response...");
             socket.send("got it");
           }
+        } catch (ZMQException e) {
+          if (e.getErrorCode() != Error.ETERM.getCode())
+            throw e;
         }
-      };
-    }
-
-    public void start() {
-      workerLog("Reporting for duty!");
-      ZThread.fork(ctx, runnable);
-    }
+      }
+    }.start();
   }
 
   public static void main(String[] argv) {
-    try (ZContext ctx = new ZContext()) {
+    try {
+      ZContext ctx = new ZContext();
+
       Runtime.getRuntime().addShutdownHook(new Thread() {
         @Override
         public void run() {
@@ -102,7 +94,7 @@ public class Main {
 
       System.out.println("Starting workers...");
       for (int i = 0; i < NUMBER_OF_WORKERS; i++) {
-        new Worker(ctx, i).start();
+        startWorker(ctx, i);
       }
 
       System.out.println("Proxying requests...");
