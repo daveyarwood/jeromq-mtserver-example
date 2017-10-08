@@ -97,4 +97,4 @@ java.lang.ArrayIndexOutOfBoundsException: -1
         at java.lang.Thread.run(Thread.java:745)
 ```
 
-[the-issue]: http://zguide.zeromq.org/java:mtserver
+[the-issue]: https://github.com/zeromq/jeromq/issues/488
