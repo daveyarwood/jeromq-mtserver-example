@@ -1,6 +1,6 @@
 (set-env!
   :source-paths #{"src"}
-  :dependencies '[[org.zeromq/jeromq        "0.4.2"]
+  :dependencies '[[org.zeromq/jeromq        "0.4.3"]
                   [alandipert/boot-trinkets "2.0.0" :scope "test"]])
 
 (task-options!
